@@ -38,5 +38,13 @@ Players collect candy, dodge ghosts, and escape through the crypt door—then le
 
 ---
 
-## 🚀 Try it now!
-   [git clone https://github.com/<your-username>/algorithm-knights-maze.git](https://marcusgozon.github.io/Algorithm-Knights-Halloween-Maze/)
+## 🎯 Purpose
+This project was created for the Algorithm Knights Sub-Org Halloween Event to help students visualize how algorithms work in solving maze problems. It blends education and entertainment, making DSA concepts easier to understand.
+
+---
+
+## 🚀 Future Plans
+- Add player movement with arrow keys  
+- Implement auto-solver using BFS/DFS  
+- Expand maze levels with increasing difficulty  
+- Integrate scoring and 
