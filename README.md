@@ -45,6 +45,5 @@ This project was created for the Algorithm Knights Sub-Org Halloween Event to he
 
 ## 🚀 Future Plans
 - Add player movement with arrow keys  
-- Implement auto-solver using BFS/DFS  
 - Expand maze levels with increasing difficulty  
-- Integrate scoring and 
+- add database to Integrate scoring and and leaderboard system
