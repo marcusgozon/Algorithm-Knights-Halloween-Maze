@@ -46,6 +46,11 @@
           <label class="field"><span>Your name (so we can see your score)</span>
             <input type="text" id="nameInput" maxlength="14" placeholder="e.g. Marcus Gozon" autocomplete="off">
           </label>
+
+          <label class="field"><span>Enter your Email (to save your score)</span>
+            <input type="email" id="emailInput" maxlength="100" placeholder="e.g. marcus.gozon@example.com" autocomplete="off">
+          </label>
+
           <div class="levels" role="radiogroup" aria-label="Difficulty">
             <button class="level" role="radio" aria-checked="true" data-level="cozy"><b>Cozy</b><span>No ghost. Soft lantern light. Pure maze.</span></button>
             <button class="level" role="radio" aria-checked="false" data-level="spooky"><b>Spooky</b><span>The first candy wakes a slow ghost.</span></button>
@@ -106,6 +111,22 @@
       <div class="stat"><b id="rBest">-</b><small>best on this seed</small></div>
     </div>
     <p class="help">Take a screenshot of this card and show your captain. Then read how the game works below!</p>
+
+    <h3 class="sub">Leader Board</h3>
+    <div class="idea" id="leaderboard">
+      <div class="tablewrap">
+        <table class="maptable">
+          <thead><tr><th>In the game</th><th>Best Time</th><th>Score</th></tr></thead>
+          <tbody>
+            <tr><td>Bautista</td><td><b>1:23</b></td><td>10000</td></tr>
+            <tr><td>Gozon</td><td><b>1:45</b></td><td>9500</td></tr>
+            <tr><td>Reyes</td><td><b>2:10</b></td><td>9000</td></tr>
+            <tr><td>Tan</td><td><b>2:30</b></td><td>8500</td></tr>
+            <tr><td>Unknown</td><td><b>2:30</b></td><td>8500</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
     <h3 class="sub">The big idea in 30 seconds</h3>
     <div class="idea">

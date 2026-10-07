@@ -116,6 +116,15 @@ input[type=text]:focus-visible{border-color:var(--accent)}
 .row{display:flex; gap:8px}
 .row input{flex:1; min-width:0}
 
+input[type=email]{
+  width:100%; font:inherit; font-size:22px; color:var(--ink); background:var(--code);
+  border:3px solid var(--line); padding:6px 10px; outline:none;
+}
+input[type=email]:focus-visible{border-color:var(--accent)}
+.row{display:flex; gap:8px}
+.row input{flex:1; min-width:0}
+
+
 .btn{
   font-family:'Press Start 2P','Courier New',monospace; font-size:11px; line-height:1.4;
   color:#fff; background:var(--accent); border:4px solid var(--line); padding:11px 13px; cursor:pointer;
