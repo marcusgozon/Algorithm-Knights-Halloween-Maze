@@ -6,14 +6,15 @@
 const $ = id => document.getElementById(id);
 const T = 16;           // game tile size (low-res pixels)
 const VT = 8;           // visualizer tile size
-const API_URL = "https://script.google.com/macros/s/AKfycbxdgLOZ57k1K6a0XWYmE1rRgd1Q7_kUMFREkSHYTNYKWivCX7oJzJ_FBXDea1ydNZivvg/exec";   // your Apps Script web app /exec URL
+const API_URL = "https://script.google.com/macros/s/AKfycbxdgLOZ57k1K6a0XWYmE1rRgd1Q7_kUMFREkSHYTNYKWivCX7oJzJ_FBXDea1ydNZivvg/exec";
+const QUIZ_URL = "https://script.google.com/macros/s/AKfycbx3yaIg2hgGs5EEY2cjRlnEo9AuejznGtv4KBa3bneNVhcNSAozcR4cESwnYXgWgS7j/exec";
 const DIFF = {
   cozy:      {name:'Cozy',      cols:19, rows:13, candy:4, ghost:0,   dark:.35, radius:6, loops:0},
   spooky:    {name:'Spooky',    cols:25, rows:17, candy:5, ghost:480, dark:.62, radius:5, loops:10},
   nightmare: {name:'Nightmare', cols:31, rows:19, candy:6, ghost:330, dark:.85, radius:4, loops:14}
 };
-
-
+ 
+ 
 /* ---------- ambience ---------- */
 (function ambience(){
   const c = $('moon'), x = c.getContext('2d');
@@ -47,7 +48,7 @@ const DIFF = {
     w.appendChild(cv); box.appendChild(w);
   }
 })();
-
+ 
 /* ---------- sound ---------- */
 let audio = null;
 function beep(freq, dur = .08, type = 'square', vol = .04, slide = 0){
@@ -61,13 +62,13 @@ function beep(freq, dur = .08, type = 'square', vol = .04, slide = 0){
     o.connect(g); g.connect(audio.destination); o.start(t); o.stop(t + dur);
   } catch (e) {}
 }
-
+ 
 /* ---------- music, cheer & volume (files are in the assets/ folder) ---------- */
 const bgMusic = $('bgMusic'), cheerSfx = $('cheerSfx');
 let musicVol = 0.2, sfxVol = 0.5;       // 0 to 1 (kept low on purpose)
 let musicWanted = false;                // should the music be playing right now?
 let fadeTimer = null, fading = false;
-
+ 
 try {
   const m = parseFloat(localStorage.getItem('akm-vol2-music')), f = parseFloat(localStorage.getItem('akm-vol2-sfx'));
   if (!isNaN(m)) musicVol = m;
@@ -75,7 +76,7 @@ try {
 } catch (e) {}
 $('volMusic').value = Math.round(musicVol * 100);
 $('volSfx').value = Math.round(sfxVol * 100);
-
+ 
 function saveVolumes(){
   try { localStorage.setItem('akm-vol2-music', musicVol); localStorage.setItem('akm-vol2-sfx', sfxVol); } catch (e) {}
 }
@@ -112,7 +113,7 @@ function playCheer(){
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) bgMusic.pause(); else if (musicWanted) safePlay(bgMusic);
 });
-
+ 
 // Try to start the music as soon as the page opens.
 // Browsers often block sound until the first tap, click, or key press,
 // so if that happens we start it on the very first interaction instead.
@@ -128,7 +129,7 @@ function autoStartMusic(){
     events.forEach(ev => addEventListener(ev, kick, {passive:true}));
   });
 }
-
+ 
 /* ---------- sprites ---------- */
 const PAL = {o:'#ff8a2b', d:'#b8480c', g:'#5cd16a', k:'#1b1030', y:'#ffd23f', w:'#f6f2ff', c:'#b9c8ff'};
 function makeSprite(rows){
@@ -165,7 +166,7 @@ const GHOST = makeSprite([
   '.ww.www.www.',
   '.w...w...w..'
 ]);
-
+ 
 /* ---------- state ---------- */
 const canvas = $('game'), ctx = canvas.getContext('2d');
 const seedInput = $('seedInput'), nameInput = $('nameInput');
@@ -174,13 +175,13 @@ const randomSeed = () => WORDS[Math.floor(Math.random() * WORDS.length)] + '-' +
 let S = null, diff = 'cozy', mode = 'menu';
 const held = [];
 let queued = null;
-
+ 
 function hash2(x, y, s){
   let h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(s + 1, 2246822519);
   h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16;
   return (h >>> 0) / 4294967296;
 }
-
+ 
 function setup(){
   const d = DIFF[diff];
   if (!seedInput.value.trim()) seedInput.value = randomSeed();
@@ -191,7 +192,7 @@ function setup(){
   const loops = d.loops ? addLoops(g, rand, d.loops, 14) : 0;
   const cols = d.cols, rows = d.rows, start = [1, 1];
   const fs = bfs(g, 1, 1);
-
+ 
   const allLeaves = [];   // dead ends of the maze (the leaves of the tree)
   for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++){
     if (g[y][x] === 0 && degree(g, x, y) === 1 && !(x === 1 && y === 1)) allLeaves.push([x, y]);
@@ -216,7 +217,7 @@ function setup(){
     const p = fs.order[Math.floor(rand() * fs.order.length)];
     if (!(p[0] === 1 && p[1] === 1) && !(p[0] === exit[0] && p[1] === exit[1]) && !candies.some(c => c.x === p[0] && c.y === p[1])) candies.push({x:p[0], y:p[1], got:false});
   }
-
+ 
   let ghost = null;
   if (d.ghost){
     pool.sort((a, b) => fs.dist[b[1]][b[0]] - fs.dist[a[1]][a[0]]);
@@ -225,7 +226,7 @@ function setup(){
     ghost = {x:den[0], y:den[1], hx:den[0], hy:den[1], rx:den[0], ry:den[1], awake:false, next:0, cool:0};
   }
   const pr = perfectRun(g, start, exit, candies.map(c => [c.x, c.y]));
-
+ 
   S = {
     d, seed, cols, rows, g, gen, start, exit, fs, leaves, candies, ghost,
     got:0, moves:0, rewalk:0, scares:0, px:1, py:1, rx:1, ry:1,
@@ -239,7 +240,7 @@ function setup(){
   buildBG();
   $('hSeed').textContent = seed;
 }
-
+ 
 /* ---------- pixel art: static layer ---------- */
 function drawFloor(x, tx, ty, ox, oy){
   x.fillStyle = ((tx + ty) & 1) ? '#1b1517' : '#211a1c';
@@ -301,7 +302,7 @@ function buildBG(){
   x.fillStyle = '#ff6b6b'; x.fillRect(ox + 7, oy + 6, 2, 4); x.fillRect(ox + 6, oy + 7, 4, 2);
   S.bg = c;
 }
-
+ 
 /* ---------- game logic ---------- */
 function toast(msg, ms = 1900){
   const t = $('toast'); t.textContent = msg; t.classList.add('show');
@@ -387,7 +388,7 @@ function update(now, dt){
     if (gh.x === S.px && gh.y === S.py) caught(now);
   }
 }
-
+ 
 /* ---------- rendering ---------- */
 const DARK = [0, .25, .5, .75, 1].map(a => a);
 function drawCandy(cd, now, i){
@@ -436,11 +437,11 @@ function render(now, dt){
   const k = 1 - Math.exp(-dt / 50);
   S.rx += (S.px - S.rx) * k; S.ry += (S.py - S.ry) * k;
   if (S.ghost){ const kg = 1 - Math.exp(-dt / 130); S.ghost.rx += (S.ghost.x - S.ghost.rx) * kg; S.ghost.ry += (S.ghost.y - S.ghost.ry) * kg; }
-
+ 
   ctx.save();
   if (now < S.shake) ctx.translate(Math.round((Math.random() - .5) * 4), Math.round((Math.random() - .5) * 4));
   ctx.drawImage(S.bg, 0, 0);
-
+ 
   // breadcrumbs: tiles you have walked (brighter = walked again)
   S.heat.forEach((c, key) => {
     const [x, y] = key.split(',').map(Number);
@@ -492,7 +493,7 @@ function frame(ts){
   if (S){ update(ts, dt); render(ts, dt); hud(ts); }
   requestAnimationFrame(frame);
 }
-
+ 
 /* ---------- celebration: confetti (the win box now stays open so players can save their time) ---------- */
 const cf = $('confetti'), cfx = cf.getContext('2d');
 let cfPieces = [], cfRaf = 0, winToken = 0;
@@ -535,7 +536,7 @@ function celebrate(){
   launchConfetti();
   ['#ff6b6b', '#ffffff', '#ffd23f'].forEach(c => burst(S.exit[0], S.exit[1], c));
 }
-
+ 
 /* ---------- flow ---------- */
 function startGame(){
   setup();
@@ -589,7 +590,7 @@ function showLesson(name){
   $('rBoo').textContent = S.scares;
   $('rBest').textContent = fmt(best);
   $('perfectExplain').textContent = 'The fewest steps to grab every candy and reach the door is ' + S.perfect + '. You took ' + S.moves + '. Wrong turns and ghost boos add steps, and that is totally okay!';
-
+ 
   // data for the graph tabs
   let V = 0, E = 0;
   for (let y = 0; y < S.rows; y++) for (let x = 0; x < S.cols; x++){
@@ -603,7 +604,7 @@ function showLesson(name){
   S.fs.order.forEach(([x, y], i) => { S.orderIdx[y][x] = i; });
   S.bt = bfsTrace(S.g, S.start[0], S.start[1], S.exit[0], S.exit[1]);
   $('graphFacts').textContent = 'Your maze has ' + V + ' dots and ' + E + ' lines.' + (S.loops ? ' This level has extra loops, which means more lines and more ways to escape the ghost!' : '');
-
+ 
   $('lesson').hidden = false;
   vz.width = S.cols * VT; vz.height = S.rows * VT;
   selectTab('run');
@@ -611,7 +612,7 @@ function showLesson(name){
   if (window.showLeaderboard) showLeaderboard(diff);   // the board only appears after a win
   if (!acct && window.loadLeaderboard) loadLeaderboard(API_URL).catch(() => {});   // guests see the scores too
 }
-
+ 
 /* ---------- visualizer ---------- */
 const vz = $('viz'), vx = vz.getContext('2d');
 let vzMode = 'run', vzRaf = 0, vzSpeed = 4;
@@ -724,7 +725,7 @@ function selectTab(name){
   vzSet(name === 'quiz' ? 'run' : name);
   if (name === 'quiz'){ $('vzLegend').textContent = LEGEND.run; }
 }
-
+ 
 /* ---------- quiz ---------- */
 const QUIZ = [
   {q:'People wait in a line at the canteen. Who gets served first?',
@@ -743,10 +744,33 @@ const QUIZ = [
    o:['It guesses','It walks through walls','It checks close tiles first, then farther ones, like a ripple in a pond','It follows the loudest sound'], a:2,
    why:'This is BFS. Near tiles are always checked before far tiles, so the first time the ripple reaches you is the quickest way.'}
 ];
+ 
+/* Sends the finished quiz to the Google Form (through the small web app in the Form's own script, QUIZ_URL). */
+async function saveQuiz(score, total, answers, letters){
+  if (!acct){ $('quizScore').textContent += '  (Not saved: log in to record your score.)'; return; }
+  try {
+    const r = await api({
+      action: 'quiz',
+      email: acct.email,
+      name: nameInput.value.trim(),
+      score: score,
+      total: total,
+      mode: diff,
+      answers: answers.join(' | '),
+      choices: letters
+    }, QUIZ_URL);
+    if (r.ok) $('quizScore').textContent += '  (Score saved!)';
+    else if (r.duplicate) $('quizScore').textContent += '  (Your first score was already saved. This try is just for practice.)';
+    else $('quizScore').textContent += '  (Not saved: ' + r.message + ')';
+  } catch (e) {
+    $('quizScore').textContent += '  (Could not save. Check your connection.)';
+  }
+}
 function buildQuiz(){
   const box = $('quizBox'); box.innerHTML = ''; let answered = 0, score = 0;
+  const picks = [], letters = [];                              // what the player chose, sent to the form
   $('quizScore').textContent = ''; $('btnQuizRetry').hidden = true;
-  QUIZ.forEach(item => {
+  QUIZ.forEach((item, qi) => {
     const q = document.createElement('div'); q.className = 'q';
     const p = document.createElement('p'); p.textContent = item.q; q.appendChild(p);
     const opts = document.createElement('div'); opts.className = 'opts'; q.appendChild(opts);
@@ -756,10 +780,13 @@ function buildQuiz(){
       b.addEventListener('click', () => {
         [...opts.children].forEach((c, ci) => { c.disabled = true; if (ci === item.a) c.classList.add('right'); });
         if (idx !== item.a) b.classList.add('wrong'); else score++;
+        picks[qi] = 'Q' + (qi + 1) + ': ' + 'ABCD'[idx] + (idx === item.a ? ' (right)' : ' (wrong, answer ' + 'ABCD'[item.a] + ')');
+        letters[qi] = 'ABCD'[idx];
         q.classList.add('done'); answered++;
         if (answered === QUIZ.length){
           $('quizScore').textContent = 'Score: ' + score + '/' + QUIZ.length + (score === QUIZ.length ? '. Perfect! You know the basics of data structures and algorithms!' : score >= 4 ? '. Great job! You get the main ideas.' : '. Good try! Peek at the tabs and have another go.');
           $('btnQuizRetry').hidden = false;
+          saveQuiz(score, QUIZ.length, picks, letters);        // records it in the Google Form
         }
       });
       opts.appendChild(b);
@@ -767,10 +794,11 @@ function buildQuiz(){
     box.appendChild(q);
   });
 }
+ 
 
 /* ---------- sign up / log in with Gmail + code (on the start menu, remembered on this device) ---------- */
-async function api(body){
-  const r = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(body)});
+async function api(body, url = API_URL){
+  const r = await fetch(url, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(body)});
   return r.json();
 }
 function setMsg(id, text, bad){
