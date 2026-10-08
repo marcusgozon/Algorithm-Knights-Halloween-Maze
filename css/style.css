@@ -97,7 +97,7 @@ canvas#game{
 
 .overlay{
   position:absolute; inset:0; display:flex; align-items:flex-start; justify-content:center;
-  background:rgba(14,7,30,.66); padding:10px; overflow:auto;
+  background:rgba(14,7,30,.66); padding:10px; overflow:auto; overscroll-behavior:contain;
 }
 .card{
   background:var(--panel); border:4px solid var(--line);
@@ -115,15 +115,6 @@ input[type=text]{
 input[type=text]:focus-visible{border-color:var(--accent)}
 .row{display:flex; gap:8px}
 .row input{flex:1; min-width:0}
-
-input[type=email]{
-  width:100%; font:inherit; font-size:22px; color:var(--ink); background:var(--code);
-  border:3px solid var(--line); padding:6px 10px; outline:none;
-}
-input[type=email]:focus-visible{border-color:var(--accent)}
-.row{display:flex; gap:8px}
-.row input{flex:1; min-width:0}
-
 
 .btn{
   font-family:'Press Start 2P','Courier New',monospace; font-size:11px; line-height:1.4;

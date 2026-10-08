@@ -6,6 +6,7 @@
 const $ = id => document.getElementById(id);
 const T = 16;           // game tile size (low-res pixels)
 const VT = 8;           // visualizer tile size
+const API_URL = "https://script.google.com/macros/s/AKfycbxdgLOZ57k1K6a0XWYmE1rRgd1Q7_kUMFREkSHYTNYKWivCX7oJzJ_FBXDea1ydNZivvg/exec";   // your Apps Script web app /exec URL
 const DIFF = {
   cozy:      {name:'Cozy',      cols:19, rows:13, candy:4, ghost:0,   dark:.35, radius:6},
   spooky:    {name:'Spooky',    cols:25, rows:17, candy:5, ghost:480, dark:.62, radius:5},
@@ -490,7 +491,7 @@ function frame(ts){
   requestAnimationFrame(frame);
 }
 
-/* ---------- celebration: confetti, then scroll to the lesson ---------- */
+/* ---------- celebration: confetti (the win box now stays open so players can save their time) ---------- */
 const cf = $('confetti'), cfx = cf.getContext('2d');
 let cfPieces = [], cfRaf = 0, winToken = 0;
 const CF_COLORS = ['#e5202f', '#ff6b6b', '#ffffff', '#ffd23f', '#ff7ab8', '#9a1020'];
@@ -531,14 +532,6 @@ function launchConfetti(){
 function celebrate(){
   launchConfetti();
   ['#ff6b6b', '#ffffff', '#ffd23f'].forEach(c => burst(S.exit[0], S.exit[1], c));
-  const token = ++winToken;
-  setTimeout(() => {                                     // after the party, take them to the lesson
-    if (token !== winToken || mode !== 'won') return;
-    $('winbox').hidden = true;
-    const L = $('lesson');
-    L.scrollIntoView({behavior:reduceMotion() ? 'auto' : 'smooth', block:'start'});
-    L.classList.remove('flash'); void L.offsetWidth; L.classList.add('flash');
-  }, 3000);
 }
 
 /* ---------- flow ---------- */
@@ -549,12 +542,16 @@ function startGame(){
   cheerSfx.pause(); cheerSfx.currentTime = 0;
   startMusic();
   $('menu').hidden = true; $('winbox').hidden = true; $('lesson').hidden = true;
+  fitStage();
+  if (window.hideLeaderboard) hideLeaderboard();
   toast('Candy hides in the dead ends. Grab it all!', 2600);
 }
 function backToMenu(){
   mode = 'menu'; held.length = 0;
   winToken++; stopConfetti(); cheerSfx.pause(); startMusic();
   $('lesson').hidden = true; $('winbox').hidden = true; $('menu').hidden = false;
+  fitStage();
+  if (window.hideLeaderboard) hideLeaderboard();
   cancelAnimationFrame(vzRaf);
   seedInput.value = randomSeed(); setup();
   window.scrollTo({top:0, behavior:'smooth'});
@@ -567,6 +564,7 @@ function win(now){
   const name = nameInput.value.trim() || 'Traveler';
   $('winLine').textContent = name + ', you made it out in ' + fmt(S.elapsed) + ' with ' + S.scares + (S.scares === 1 ? ' boo.' : ' boos.');
   $('winbox').hidden = false;
+  afterWin();        // logged in: save the time. Not logged in: show sign up / log in
   showLesson(name);
   celebrate();
 }
@@ -618,6 +616,8 @@ function showLesson(name){
   vz.width = S.cols * VT; vz.height = S.rows * VT;
   selectTab('run');
   buildQuiz();
+  if (window.showLeaderboard) showLeaderboard(diff);   // the board only appears after a win
+  if (!acct && window.loadLeaderboard) loadLeaderboard(API_URL).catch(() => {});   // guests see the scores too
 }
 
 /* ---------- visualizer ---------- */
@@ -779,6 +779,137 @@ function buildQuiz(){
   });
 }
 
+/* ---------- sign up / log in with Gmail + code (on the start menu, remembered on this device) ---------- */
+async function api(body){
+  const r = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(body)});
+  return r.json();
+}
+function setMsg(id, text, bad){
+  const m = $(id); m.textContent = text; m.style.color = bad ? 'var(--bad)' : 'var(--ok)';
+}
+function fitStage(){                 // the menu scrolls inside the box; never stretch the stage
+  $('stage').style.minHeight = '';
+  const m = $('menu'); if (m) m.scrollTop = 0;
+}
+let acct = null;     // {email, token} once the Gmail is confirmed
+try { acct = JSON.parse(localStorage.getItem('akm-acct') || 'null'); } catch (e) {}
+function saveAcct(){
+  try { if (acct) localStorage.setItem('akm-acct', JSON.stringify(acct)); else localStorage.removeItem('akm-acct'); } catch (e) {}
+}
+function syncNameField(){            // the name is only needed when signing up
+  const loggedIn = !!(acct && acct.email && acct.token);
+  const onLogin = !$('paneLogin').hidden;
+  $('nameField').hidden = loggedIn || onLogin;
+}
+function showTab(which){
+  const su = which === 'signup';
+  $('paneSignup').hidden = !su; $('paneLogin').hidden = su;
+  $('tabSignup').setAttribute('aria-selected', String(su));
+  $('tabLogin').setAttribute('aria-selected', String(!su));
+  $('authMsg').textContent = '';
+  syncNameField();
+  fitStage();
+}
+function renderAuth(){
+  const on = !!(acct && acct.email && acct.token);
+  $('authBox').hidden = on; $('whoLine').hidden = !on;
+  if (on) $('loggedAs').textContent = acct.email;
+  syncNameField();
+  fitStage();
+}
+function logout(){
+  nameInput.value = '';
+  acct = null; saveAcct(); renderAuth(); showTab('login');
+  ['suEmail', 'suCode', 'liEmail', 'liCode'].forEach(id => { $(id).value = ''; });
+  $('suCodeRow').hidden = true; $('liCodeRow').hidden = true;
+}
+async function checkSession(){       // on page load: is the saved login still good?
+  if (!acct) return;
+  try {
+    const r = await api({action:'session', email:acct.email, token:acct.token});
+    if (!r.ok && r.relogin){ acct = null; saveAcct(); renderAuth(); }
+    else if (r.ok && r.name) nameInput.value = r.name;
+  } catch (e) {}                     // offline: keep the saved login
+}
+
+/* after a win: save the time (if logged in), then show the leaderboard */
+function finishWinSoon(ms){
+  const token = winToken;
+  setTimeout(() => {
+    if (token !== winToken || mode !== 'won') return;
+    $('winbox').hidden = true;
+    ($('board') || $('lesson')).scrollIntoView({behavior:reduceMotion() ? 'auto' : 'smooth', block:'start'});
+  }, ms);
+}
+async function afterWin(){
+  if (acct){ if (await submitTime()) finishWinSoon(2500); }
+  else setMsg('saveMsg', 'You are not logged in, so this time was not saved. Choose New game, then sign up or log in.', true);
+}
+async function submitTime(){         // saves the time into this account's row, then refreshes the board
+  const secs = Math.round(S.elapsed / 1000), md = diff;
+  let ok = false;
+  setMsg('saveMsg', 'Saving your time...');
+  try {
+    const r = await api({action:'submit', email:acct.email, token:acct.token, mode:md, seconds:secs});
+    ok = !!r.ok;
+    setMsg('saveMsg', r.message, !r.ok);
+    if (!r.ok && r.relogin) logout();
+  } catch (e){ setMsg('saveMsg', 'Could not save your time. Check your connection.', true); }
+  try { await loadLeaderboard(API_URL); } catch (e) {}
+  return ok;
+}
+
+// The sign up form and the log in form work the same way, each with its own inputs.
+function wireAuth(kind, ids){
+  const E = $(ids.email), SEND = $(ids.send), ROW = $(ids.row), CODE = $(ids.code), OK = $(ids.ok);
+  SEND.addEventListener('click', async () => {
+    const email = E.value.trim();
+    if (!email) return setMsg('authMsg', 'Type your Gmail first.', true);
+    if (kind === 'signup' && !nameInput.value.trim()) return setMsg('authMsg', 'Type your name first.', true);
+    SEND.disabled = true; setMsg('authMsg', 'Sending the code...');
+    try {
+      const r = await api({action:'sendCode', kind, email});
+      if (r.ok){
+        setMsg('authMsg', r.message);
+        ROW.hidden = false; CODE.focus();
+        setTimeout(() => { SEND.disabled = false; }, 60000);
+      } else {
+        SEND.disabled = false;
+        if (r.switchTo){                         // wrong form: send them to the right one
+          showTab(r.switchTo);
+          $(r.switchTo === 'login' ? 'liEmail' : 'suEmail').value = email;
+        }
+        setMsg('authMsg', r.message, true);
+      }
+    } catch (e){ setMsg('authMsg', 'Could not reach the server. Try again.', true); SEND.disabled = false; }
+    fitStage();
+  });
+  OK.addEventListener('click', async () => {
+    const email = E.value.trim(), code = CODE.value.trim();
+    if (!code) return setMsg('authMsg', 'Type the 6-digit code.', true);
+    OK.disabled = true; setMsg('authMsg', 'Checking...');
+    try {
+      const v = await api({action:'verifyCode', kind, email, code, name:nameInput.value.trim()});
+      if (!v.ok){
+        if (v.switchTo) showTab(v.switchTo);
+        setMsg('authMsg', v.message, true);
+      } else {
+        acct = {email:v.email, token:v.token}; saveAcct();
+        if (v.name) nameInput.value = v.name;
+        ROW.hidden = true; CODE.value = '';
+        renderAuth();
+        setMsg('authMsg', 'Confirmed! You are logged in. Press Start.');
+      }
+    } catch (e){ setMsg('authMsg', 'Could not reach the server. Try again.', true); }
+    OK.disabled = false; fitStage();
+  });
+}
+wireAuth('signup', {email:'suEmail', send:'suSend', row:'suCodeRow', code:'suCode', ok:'suConfirm'});
+wireAuth('login',  {email:'liEmail', send:'liSend', row:'liCodeRow', code:'liCode', ok:'liConfirm'});
+$('tabSignup').addEventListener('click', () => showTab('signup'));
+$('tabLogin').addEventListener('click', () => showTab('login'));
+$('btnLogout').addEventListener('click', logout);
+
 /* ---------- input ---------- */
 const KEYDIR = {ArrowUp:[0,-1], ArrowDown:[0,1], ArrowLeft:[-1,0], ArrowRight:[1,0], w:[0,-1], s:[0,1], a:[-1,0], d:[1,0]};
 const keyOf = e => e.key.length === 1 ? e.key.toLowerCase() : e.key;
@@ -824,7 +955,11 @@ document.querySelectorAll('.level').forEach(b => b.addEventListener('click', () 
 seedInput.addEventListener('input', () => { if (seedInput.value.trim()) setup(); });
 seedInput.addEventListener('blur', () => { if (!seedInput.value.trim()){ seedInput.value = randomSeed(); setup(); } });
 $('btnDice').addEventListener('click', () => { seedInput.value = randomSeed(); setup(); });
-$('btnStart').addEventListener('click', startGame);
+$('btnStart').addEventListener('click', () => {
+  if (!acct){ setMsg('authMsg', 'Sign up or log in first, or press "Play without saving my time".', true); fitStage(); return; }
+  startGame();
+});
+$('btnGuest').addEventListener('click', startGame);
 $('btnMenu').addEventListener('click', backToMenu);
 $('btnAgain').addEventListener('click', startGame);
 $('btnAgain2').addEventListener('click', backToMenu);
@@ -847,8 +982,85 @@ $('volSfx').addEventListener('input', e => {
 });
 $('volSfx').addEventListener('change', () => beep(660, .06));   // little preview beep when you let go
 
+renderAuth();
+checkSession();
+fitStage();
+addEventListener('resize', fitStage);
+addEventListener('load', fitStage);
 applyAudio();
 autoStartMusic();
 seedInput.value = randomSeed();
 setup();
 requestAnimationFrame(frame);
+
+/* ---------- leaderboard (built into this file; the board appears after a win) ---------- */
+(function () {
+  const MODES = [["cozy", "Cozy"], ["spooky", "Spooky"], ["nightmare", "Nightmare"]];
+  const data = { cozy: [], spooky: [], nightmare: [] };   // rows: [name, seconds]
+  let current = "cozy";
+  const fmt = s => Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+
+  const css = document.createElement("style");
+  css.textContent =
+    "#board[hidden]{display:none !important}" +
+    "#board h2{font-size:clamp(12px,3vw,16px);color:var(--gold);margin:0 0 4px}" +
+    "#board .note{color:var(--muted);font-size:18px;margin:0 0 10px}" +
+    "#lbTabs{display:flex;gap:6px;margin-bottom:10px}" +
+    ".lbtab{font-family:'Press Start 2P','Courier New',monospace;font-size:10px;color:var(--muted);background:var(--code);border:3px solid var(--line);padding:10px 12px;cursor:pointer}" +
+    ".lbtab[aria-selected='true']{background:var(--accent);color:#fff}" +
+    ".lbtab:focus-visible{outline:3px solid var(--gold);outline-offset:2px}" +
+    "#lbList{list-style:none;margin:0;padding:0}" +
+    "#lbList li{display:grid;grid-template-columns:38px 1fr auto;gap:10px;padding:6px 10px;background:var(--code);border:2px solid var(--panel-2);margin-bottom:6px}" +
+    "#lbList .no{color:var(--muted)}#lbList li:first-child .no{color:var(--gold)}" +
+    "#lbList b{font-weight:400;color:var(--gold)}";
+  document.head.appendChild(css);
+
+  const board = document.createElement("section");
+  board.className = "panel"; board.id = "board"; board.hidden = true; board.style.marginTop = "18px";
+  board.setAttribute("aria-label", "Top 5 per mode");
+  board.innerHTML =
+    '<h2 class="pixel">Top 5 Knights</h2><p class="note">Fastest escapes, per mode.</p>' +
+    '<div id="lbTabs" role="tablist" aria-label="Game mode"></div><ol id="lbList"></ol>';
+  document.getElementById("lesson").before(board);
+
+  const tabs = board.querySelector("#lbTabs");
+  MODES.forEach(([id, label]) => {
+    const b = document.createElement("button");
+    b.className = "lbtab"; b.setAttribute("role", "tab"); b.dataset.mode = id; b.textContent = label;
+    b.addEventListener("click", () => { current = id; render(); });
+    tabs.appendChild(b);
+  });
+
+  function render() {
+    tabs.querySelectorAll(".lbtab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.mode === current)));
+    const ol = board.querySelector("#lbList"); ol.textContent = "";
+    const rows = (data[current] || []).slice(0, 5);
+    if (!rows.length) {
+      ol.innerHTML = "<li><span></span><span>No players yet.</span><span></span></li>";
+      return;
+    }
+    rows.forEach((r, i) => {
+      const li = document.createElement("li");
+      [["no", "#" + (i + 1)], ["", r[0]], ["", null]].forEach(([cls, text]) => {
+        const s = document.createElement(text === null ? "b" : "span");
+        s.className = cls; s.textContent = text === null ? fmt(r[1]) : text; li.appendChild(s);
+      });
+      ol.appendChild(li);
+    });
+  }
+
+  // Loads data only. It never reveals the board.
+  window.loadLeaderboard = async function (url) {
+    const bust = url + (url.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();   // always fetch fresh scores
+    const rows = await fetch(bust, {cache: 'no-store'}).then(r => r.json());
+    rows.sort((a, b) => Number(a.seconds) - Number(b.seconds));                    // fastest first, always
+    MODES.forEach(([id]) => {
+      data[id] = rows.filter(r => r.mode === id).slice(0, 5).map(r => [r.name, r.seconds]);
+    });
+    render();
+  };
+  // Only this reveals it. Called from showLesson() in game.js after a win.
+  window.showLeaderboard = function (mode) { if (data[mode]) current = mode; board.hidden = false; render(); };
+  window.hideLeaderboard = function () { board.hidden = true; };
+  render();
+})();

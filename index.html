@@ -15,7 +15,6 @@
 <canvas id="moon" width="24" height="24" aria-hidden="true"></canvas>
 <div id="critters" aria-hidden="true"></div>
 
-<!-- Your sound files live in the assets/ folder -->
 <audio id="bgMusic" src="assets/bg-music.mp3" loop preload="auto"></audio>
 <audio id="cheerSfx" src="assets/cheer.mp3" preload="auto"></audio>
 <canvas id="confetti" aria-hidden="true"></canvas>
@@ -43,14 +42,48 @@
         <div class="card">
           <h2>Welcome, knight</h2>
           <p>Candy hides in the dead ends. Grab it all to open the crypt door, then run for it.</p>
-          <label class="field"><span>Your name (so we can see your score)</span>
+          <label class="field" id="nameField"><span>Your name (so we can see your score)</span>
             <input type="text" id="nameInput" maxlength="14" placeholder="e.g. Marcus Gozon" autocomplete="off">
           </label>
+          <div id="authBox">
+            <p class="help">Sign up or log in with your Gmail to save your time on the leaderboard.</p>
+            <div class="authtabs" role="tablist" aria-label="Sign up or log in">
+              <button class="btn alt small" id="tabSignup" role="tab" aria-selected="true">Sign up</button>
+              <button class="btn alt small" id="tabLogin" role="tab" aria-selected="false">Log in</button>
+            </div>
 
-          <label class="field"><span>Enter your Email (to save your score)</span>
-            <input type="email" id="emailInput" maxlength="100" placeholder="e.g. marcus.gozon@example.com" autocomplete="off">
-          </label>
+            <div id="paneSignup">
+              <label class="field"><span>New here? Your Gmail</span>
+                <div class="row">
+                  <input type="text" id="suEmail" inputmode="email" maxlength="60" placeholder="you@gmail.com" autocomplete="email" spellcheck="false">
+                  <button class="btn alt small" id="suSend">Send code</button>
+                </div>
+              </label>
+              <label class="field" id="suCodeRow" hidden><span>6-digit code from your email</span>
+                <div class="row">
+                  <input type="text" id="suCode" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code">
+                  <button class="btn small" id="suConfirm">Confirm</button>
+                </div>
+              </label>
+            </div>
 
+            <div id="paneLogin" hidden>
+              <label class="field"><span>Already signed up? Your Gmail</span>
+                <div class="row">
+                  <input type="text" id="liEmail" inputmode="email" maxlength="60" placeholder="you@gmail.com" autocomplete="email" spellcheck="false">
+                  <button class="btn alt small" id="liSend">Send code</button>
+                </div>
+              </label>
+              <label class="field" id="liCodeRow" hidden><span>6-digit code from your email</span>
+                <div class="row">
+                  <input type="text" id="liCode" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="one-time-code">
+                  <button class="btn small" id="liConfirm">Confirm</button>
+                </div>
+              </label>
+            </div>
+          </div>
+          <p class="help" id="whoLine" hidden>Logged in as <b id="loggedAs"></b>. <button class="btn alt small" id="btnLogout">Log out</button></p>
+          <p class="help" id="authMsg" role="status" aria-live="polite"></p>
           <div class="levels" role="radiogroup" aria-label="Difficulty">
             <button class="level" role="radio" aria-checked="true" data-level="cozy"><b>Cozy</b><span>No ghost. Soft lantern light. Pure maze.</span></button>
             <button class="level" role="radio" aria-checked="false" data-level="spooky"><b>Spooky</b><span>The first candy wakes a slow ghost.</span></button>
@@ -64,6 +97,7 @@
           </label>
           <p class="help">Everyone at the event can type the same seed to race through the same maze.</p>
           <button class="btn wide" id="btnStart">Start</button>
+          <button class="btn alt wide" id="btnGuest" style="margin-top:8px">Play without saving my time</button>
           <p class="help" style="margin:12px 0 0">Move with arrows or WASD. On a phone, swipe or use the pad.</p>
         </div>
       </div>
@@ -72,8 +106,11 @@
         <div class="card" style="text-align:center">
           <h2>You escaped!</h2>
           <p id="winLine"></p>
+
+          <p class="help" id="saveMsg" role="status" aria-live="polite"></p>
           <p class="help">Great job! We will show you what you just did in a moment...</p>
-          <button class="btn wide" id="btnLearn" style="margin-bottom:8px">Learn how it works</button>
+
+          <button class="btn alt wide" id="btnLearn" style="margin-bottom:8px">Learn how it works</button>
           <button class="btn alt wide" id="btnAgain">Play this maze again</button>
         </div>
       </div>
@@ -111,22 +148,6 @@
       <div class="stat"><b id="rBest">-</b><small>best on this seed</small></div>
     </div>
     <p class="help">Take a screenshot of this card and show your captain. Then read how the game works below!</p>
-
-    <h3 class="sub">Leader Board</h3>
-    <div class="idea" id="leaderboard">
-      <div class="tablewrap">
-        <table class="maptable">
-          <thead><tr><th>In the game</th><th>Best Time</th><th>Score</th></tr></thead>
-          <tbody>
-            <tr><td>Bautista</td><td><b>1:23</b></td><td>10000</td></tr>
-            <tr><td>Gozon</td><td><b>1:45</b></td><td>9500</td></tr>
-            <tr><td>Reyes</td><td><b>2:10</b></td><td>9000</td></tr>
-            <tr><td>Tan</td><td><b>2:30</b></td><td>8500</td></tr>
-            <tr><td>Unknown</td><td><b>2:30</b></td><td>8500</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
 
     <h3 class="sub">The big idea in 30 seconds</h3>
     <div class="idea">
@@ -324,7 +345,7 @@
   <footer>© 2026 Made for the Algorithm Knights. Happy Halloween!</footer>
 </div>
 
-<!-- Order matters: the algorithms load first, then the game that uses them -->
+<!-- Order matters: the algorithms load first, then the game (the leaderboard is inside game.js) -->
 <script src="js/maze-logic.js"></script>
 <script src="js/game.js"></script>
 </body>
