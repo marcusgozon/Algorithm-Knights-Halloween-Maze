@@ -178,8 +178,8 @@ header.top {
   padding: 6px 0 18px;
 }
 h1 {
-  margin: 0 0 10px;
-  font-size: clamp(15px, 4.4vw, 30px);
+  margin: 0 0 0px;
+  font-size: clamp(15px, 4.4vw, 22px);
   color: var(--accent);
   text-shadow:
     3px 3px 0 var(--line),
@@ -431,13 +431,13 @@ input[type="text"]:focus-visible {
 }
 
 .dpad {
-  --k: 58px;
+  --k: 42px;
   display: grid;
   margin: 10px auto 0;
   width: max-content;
   grid-template-columns: repeat(3, var(--k));
   grid-template-areas: ". up ." "left . right" ". down .";
-  gap: 5px;
+  gap: 3px;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
@@ -446,7 +446,7 @@ input[type="text"]:focus-visible {
 .dpad button {
   width: var(--k);
   height: var(--k);
-  font-size: 22px;
+  font-size: 16px;
   color: var(--ink);
   background: var(--panel-2);
   border: 3px solid var(--line);
@@ -464,12 +464,12 @@ input[type="text"]:focus-visible {
 }
 @media (max-width: 600px) {
   .dpad {
-    --k: 50px;
-    gap: 4px;
+    --k: 38px;
+    gap: 3px;
     margin-top: 8px;
   }
   .dpad button {
-    font-size: 20px;
+    font-size: 14px;
   }
 }
 .dpad .up {
