@@ -13,15 +13,18 @@ Players collect candy, dodge ghosts, and escape through the crypt door—then le
 - Result card with stats, score, and fun titles.
 - Beginner‑friendly DSA lesson + quiz after each run.
 - Easy to customize: colors, maze size, quiz questions, music.
+- **Leaderboard system** → Top 5 scores are displayed after each run.
+- **Login & verification** → Players can log in with Gmail; a 6‑digit code is sent to confirm valid email before saving scores.
 
 ---
 
 ## 🎮 How to Play
 1. Open the game in your browser.
-2. Enter your name, choose a level, and (optional) type a seed.
-3. Collect all the candy hidden in dead ends.
-4. Escape through the glowing crypt door.
-5. View your results and explore the DSA lesson.
+2. Log in with Gmail (verify with 6‑digit code).
+3. Enter your name, choose a level, and (optional) type a seed.
+4. Collect all the candy hidden in dead ends.
+5. Escape through the glowing crypt door.
+6. View your results, explore the DSA lesson, and check if you made it to the **Top 5 leaderboard**.
 
 **Controls:**
 - Laptop/Desktop → Arrow keys or `W A S D`
@@ -44,6 +47,7 @@ This project was created for the Algorithm Knights Sub-Org Halloween Event to he
 ---
 
 ## 🚀 Future Plans
-- Add player movement with arrow keys  
 - Expand maze levels with increasing difficulty  
-- add database to Integrate scoring and and leaderboard system
+- Add more customization options (themes, music, quiz sets)  
+- Improve leaderboard with global rankings and filters  
+- Enhance login system with additional providers (Microsoft, GitHub)  

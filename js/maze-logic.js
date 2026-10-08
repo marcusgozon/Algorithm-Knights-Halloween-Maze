@@ -100,15 +100,55 @@ function bfsTrace(g, sx, sy, tx, ty){
   }
   return {q, disc, goalIdx, prev, dist};
 }
-/* Shortest walk that visits every candy and ends at the door. In a tree: 2 * (edges of the needed subtree) - (road to the door). */
-function perfectRun(g, start, exit, candies){
-  const b = bfs(g, start[0], start[1]);
-  const marked = new Set();
-  for (const t of [exit, ...candies]){
-    let c = [t[0], t[1]];
-    while (c && !(c[0] === start[0] && c[1] === start[1])){ marked.add(c[0] + ',' + c[1]); c = b.prev[c[1]][c[0]]; }
+/* Break some walls on purpose so the maze has LOOPS (used for the ghost levels).
+   A wall is only opened if the two tiles on either side are already far apart by walking
+   (>= minGap steps). That makes every new loop big enough to run around, not a tiny 4-tile circle.
+   Walls sit between "cell" tiles, so opening one never creates a 2x2 open room. */
+function addLoops(g, rand, count, minGap){
+  const rows = g.length, cols = g[0].length, walls = [];
+  for (let y = 1; y < rows - 1; y++) for (let x = 1; x < cols - 1; x++){
+    if (g[y][x] !== 1) continue;
+    if (x % 2 === 1 && y % 2 === 0 && g[y-1][x] === 0 && g[y+1][x] === 0) walls.push([x, y, x, y-1, x, y+1]);
+    else if (x % 2 === 0 && y % 2 === 1 && g[y][x-1] === 0 && g[y][x+1] === 0) walls.push([x, y, x-1, y, x+1, y]);
   }
-  return {len: 2 * marked.size - b.dist[exit[1]][exit[0]], marked};
+  shuffle(walls, rand);
+  let added = 0;
+  for (const gap of [minGap, Math.ceil(minGap / 2), 6]){
+    for (const [wx, wy, ax, ay, bx, by] of walls){
+      if (added >= count) return added;
+      if (g[wy][wx] === 0) continue;
+      const d = bfs(g, ax, ay).dist[by][bx];            // walking distance before the wall is opened
+      if (d >= gap){ g[wy][wx] = 0; added++; }
+    }
+  }
+  return added;
+}
+/* Shortest walk that starts at the start, visits every candy (any order) and ends at the door.
+   Works with loops too: try every candy order (at most 6 candies = 720 orders) and keep the shortest. */
+function perfectRun(g, start, exit, candies){
+  const pts = [start, ...candies, exit], n = pts.length;
+  const runs = pts.map(p => bfs(g, p[0], p[1]));        // distances from every important tile
+  const d = (i, j) => runs[i].dist[pts[j][1]][pts[j][0]];
+  let best = Infinity, bestOrder = null;
+  const mids = candies.map((_, i) => i + 1);
+  (function permute(order, left, len, last){
+    if (len >= best) return;
+    if (!left.length){
+      const total = len + d(last, n - 1);
+      if (total < best){ best = total; bestOrder = order.slice(); }
+      return;
+    }
+    left.forEach((k, i) => {
+      permute(order.concat(k), left.filter((_, j) => j !== i), len + d(last, k), k);
+    });
+  })([], mids, 0, 0);
+  const route = [0, ...bestOrder, n - 1], marked = new Set();
+  for (let i = 0; i < route.length - 1; i++){
+    const b = runs[route[i]], t = pts[route[i + 1]];
+    let c = [t[0], t[1]];
+    while (c && !(c[0] === pts[route[i]][0] && c[1] === pts[route[i]][1])){ marked.add(c[0] + ',' + c[1]); c = b.prev[c[1]][c[0]]; }
+  }
+  return {len: best, marked};
 }
 function degree(g, x, y){
   let n = 0;

@@ -8,9 +8,9 @@ const T = 16;           // game tile size (low-res pixels)
 const VT = 8;           // visualizer tile size
 const API_URL = "https://script.google.com/macros/s/AKfycbxdgLOZ57k1K6a0XWYmE1rRgd1Q7_kUMFREkSHYTNYKWivCX7oJzJ_FBXDea1ydNZivvg/exec";   // your Apps Script web app /exec URL
 const DIFF = {
-  cozy:      {name:'Cozy',      cols:19, rows:13, candy:4, ghost:0,   dark:.35, radius:6},
-  spooky:    {name:'Spooky',    cols:25, rows:17, candy:5, ghost:480, dark:.62, radius:5},
-  nightmare: {name:'Nightmare', cols:31, rows:19, candy:6, ghost:330, dark:.85, radius:4}
+  cozy:      {name:'Cozy',      cols:19, rows:13, candy:4, ghost:0,   dark:.35, radius:6, loops:0},
+  spooky:    {name:'Spooky',    cols:25, rows:17, candy:5, ghost:480, dark:.62, radius:5, loops:10},
+  nightmare: {name:'Nightmare', cols:31, rows:19, candy:6, ghost:330, dark:.85, radius:4, loops:14}
 };
 
 
@@ -187,6 +187,8 @@ function setup(){
   const seed = seedInput.value.trim().toUpperCase();
   const rand = mulberry32(hashStr(seed + '|' + diff));
   const {g, gen} = generate(d.cols, d.rows, rand);
+  // Ghost levels: knock out some walls so there are loops to run around (and a way to escape the ghost)
+  const loops = d.loops ? addLoops(g, rand, d.loops, 14) : 0;
   const cols = d.cols, rows = d.rows, start = [1, 1];
   const fs = bfs(g, 1, 1);
 
@@ -228,7 +230,7 @@ function setup(){
     d, seed, cols, rows, g, gen, start, exit, fs, leaves, candies, ghost,
     got:0, moves:0, rewalk:0, scares:0, px:1, py:1, rx:1, ry:1,
     heat:new Map([['1,1', 1]]), started:false, t0:0, elapsed:0, lastMove:0, slide:null, bumpT:0,
-    ghostPath:[], particles:[], flash:0, shake:0,
+    ghostPath:[], particles:[], flash:0, shake:0, loops,
     perfect:pr.len, steiner:pr.marked, shortest:fs.dist[exit[1]][exit[0]]
   };
   canvas.width = cols * T; canvas.height = rows * T;
@@ -570,10 +572,10 @@ function win(now){
 }
 function showLesson(name){
   const eff = Math.min(100, Math.round(S.perfect / Math.max(1, S.moves) * 100));
-  const rank = eff >= 90 ? 'Tree Whisperer: you took almost the best possible route!'
-             : eff >= 70 ? 'Graph Explorer: you wasted very few steps.'
-             : eff >= 45 ? 'Brave Backtracker: you explored, hit dead ends, and came back, just like the maze builder did.'
-             : 'Curious Wanderer: you saw lots of the maze!';
+  const rank = eff >= 90 ? 'Maze Master: almost the best possible route!'
+             : eff >= 70 ? 'Graph Explorer: very few wasted steps.'
+             : eff >= 45 ? 'Brave Backtracker: you hit dead ends and came back.'
+             : 'Curious Wanderer: you explored lots of the maze!';
   let best = null;
   try {
     const key = 'hollow-best-' + diff + '-' + S.seed, prev = parseFloat(localStorage.getItem(key));
@@ -581,16 +583,12 @@ function showLesson(name){
     localStorage.setItem(key, String(best));
   } catch (e) { best = S.elapsed; }
   $('rRank').textContent = rank;
-  $('rName').textContent = name;
-  $('rMeta').textContent = S.d.name + ' / seed ' + S.seed;
   $('rTime').textContent = fmt(S.elapsed);
   $('rSteps').textContent = S.moves;
   $('rPerfect').textContent = S.perfect;
-  $('rEff').textContent = eff + '%';
-  $('rRewalk').textContent = S.rewalk;
   $('rBoo').textContent = S.scares;
   $('rBest').textContent = fmt(best);
-  $('perfectExplain').textContent = 'It is the fewest steps possible if you pick up every candy and then go to the door. In this maze that is ' + S.perfect + ' steps. You took ' + S.moves + '. Wrong turns and ghost boos add extra steps, and that is totally okay!';
+  $('perfectExplain').textContent = 'The fewest steps to grab every candy and reach the door is ' + S.perfect + '. You took ' + S.moves + '. Wrong turns and ghost boos add steps, and that is totally okay!';
 
   // data for the graph tabs
   let V = 0, E = 0;
@@ -604,13 +602,7 @@ function showLesson(name){
   S.orderIdx = Array.from({length:S.rows}, () => Array(S.cols).fill(-1));
   S.fs.order.forEach(([x, y], i) => { S.orderIdx[y][x] = i; });
   S.bt = bfsTrace(S.g, S.start[0], S.start[1], S.exit[0], S.exit[1]);
-  const lines = S.fs.order.slice(0, 5).map(([x, y]) => {
-    const nb = D4.filter(([dx, dy]) => S.g[y + dy] && S.g[y + dy][x + dx] === 0).map(([dx, dy]) => '(' + (x + dx) + ',' + (y + dy) + ')');
-    return 'Tile (' + x + ',' + y + ') is next to: ' + nb.join('  ');
-  });
-  $('adj').textContent = lines.join('\n') + '\n...and the same for every other tile';
-  $('graphFacts').textContent = 'Your maze has ' + V + ' dots and ' + E + ' lines.' + (E === V - 1 ? ' Look: the number of lines is exactly one less than the number of dots. That is not luck! It happens because the maze has no loops (see the "One route" tab).' : '');
-  $('treeFacts').textContent = 'Your maze has ' + S.leaves.length + ' dead ends (the leaves). ' + S.candies.length + ' of them were hiding candy.';
+  $('graphFacts').textContent = 'Your maze has ' + V + ' dots and ' + E + ' lines.' + (S.loops ? ' This level has extra loops, which means more lines and more ways to escape the ghost!' : '');
 
   $('lesson').hidden = false;
   vz.width = S.cols * VT; vz.height = S.rows * VT;
@@ -735,24 +727,21 @@ function selectTab(name){
 
 /* ---------- quiz ---------- */
 const QUIZ = [
-  {q:'In computer science, a "graph" is...',
-   o:['Dots (places) joined by lines (paths)','A bar chart with numbers','A drawing of a tree','A secret code'], a:0,
-   why:'Our maze is a graph: every tile is a dot and every step between tiles is a line. Subway maps, social networks and the internet are graphs too.'},
-  {q:'You stack plates: first plate 1, then plate 2, then plate 3. Which plate do you take off first?',
-   o:['Plate 1 (the first one you put down)','Plate 2','Plate 3 (the last one you put down)','It does not matter'], a:2,
-   why:'A pile of plates is a stack. The last plate you put on is the first one you take off ("last in, first out"). The maze builder used a stack to remember where to go back to.'},
-  {q:'The maze builder walks into a dead end. What does it do?',
-   o:['Starts over from the very beginning','Goes back to the last spot that had another path to try','Knocks down a wall','Stops forever'], a:1,
-   why:'Going back to try something else is called backtracking. You do the same when you take a wrong turn!'},
   {q:'People wait in a line at the canteen. Who gets served first?',
-   o:['A random person','The person who joined the line last','The tallest person','The person who joined the line first'], a:3,
-   why:'A line like this is a queue: "first in, first out". The ghost uses a queue to decide which tile to check next.'},
-  {q:'The ghost checks tiles 1 step away, then 2 steps away, then 3, and so on. Why does this find the SHORTEST way to you?',
-   o:['Close tiles are checked before far tiles, so the first time it reaches you is the quickest way','The ghost is faster than you','The ghost can walk through walls','It guesses and gets lucky'], a:0,
-   why:'This is BFS. It spreads out like a ripple in a pond, so near things are always found before far things.'},
-  {q:'Which pair is correct?',
-   o:['Maze builder = queue + BFS, ghost = stack + DFS','Maze builder = stack + DFS, ghost = queue + BFS','Both use only a stack','Both use only a queue'], a:1,
-   why:'The builder goes deep and backs up when stuck (stack + DFS). The ghost spreads out like a ripple (queue + BFS). Two different jobs, two different tools!'}
+   o:['The person who joined the line first','The person who joined last','The tallest person','A random person'], a:0,
+   why:'A line like this is a queue: first in, first out. The ghost uses a queue to decide which tile to check next.'},
+  {q:'You put 3 plates in a pile. Which plate do you take off first?',
+   o:['The one at the bottom','The one on top, the last one you put down','The one in the middle','Any plate, it does not matter'], a:1,
+   why:'A pile of plates is a stack: last in, first out. The maze builder used a stack to remember where to go back to.'},
+  {q:'The maze builder walks into a dead end. What does it do?',
+   o:['It gives up','It goes back to the last spot that had another path','It knocks down every wall','It starts the whole maze again'], a:1,
+   why:'Going back to try something else is called backtracking. You do the same when you take a wrong turn!'},
+  {q:'A computer sees the maze as dots joined by lines. What is that called?',
+   o:['A graph','A song','A bar chart','A pile of plates'], a:0,
+   why:'Every tile is a dot and every step between tiles is a line. Subway maps and GPS roads are graphs too.'},
+  {q:'How does the ghost find the shortest way to you?',
+   o:['It guesses','It walks through walls','It checks close tiles first, then farther ones, like a ripple in a pond','It follows the loudest sound'], a:2,
+   why:'This is BFS. Near tiles are always checked before far tiles, so the first time the ripple reaches you is the quickest way.'}
 ];
 function buildQuiz(){
   const box = $('quizBox'); box.innerHTML = ''; let answered = 0, score = 0;
@@ -769,7 +758,7 @@ function buildQuiz(){
         if (idx !== item.a) b.classList.add('wrong'); else score++;
         q.classList.add('done'); answered++;
         if (answered === QUIZ.length){
-          $('quizScore').textContent = 'Score: ' + score + '/' + QUIZ.length + (score === QUIZ.length ? '. Perfect! You now know the basics of data structures and algorithms!' : score >= 4 ? '. Great job! You understand the main ideas.' : '. Good try! Read the tabs again and have another go. It gets easier!');
+          $('quizScore').textContent = 'Score: ' + score + '/' + QUIZ.length + (score === QUIZ.length ? '. Perfect! You know the basics of data structures and algorithms!' : score >= 4 ? '. Great job! You get the main ideas.' : '. Good try! Peek at the tabs and have another go.');
           $('btnQuizRetry').hidden = false;
         }
       });
