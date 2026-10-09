@@ -1008,7 +1008,7 @@ requestAnimationFrame(frame);
   board.className = "panel"; board.id = "board"; board.hidden = true; board.style.marginTop = "18px";
   board.setAttribute("aria-label", "Top 5 per mode");
   board.innerHTML =
-    '<h2 class="pixel">Top 5 Knights</h2><p class="note">Fastest escapes, per mode.</p>' +
+    '<h2 class="pixel">Top 5 Knights Leaderboard</h2><p class="note">Fastest escapes, per mode.</p>' +
     '<div id="lbTabs" role="tablist" aria-label="Game mode"></div><ol id="lbList"></ol>';
   document.getElementById("lesson").before(board);
 
